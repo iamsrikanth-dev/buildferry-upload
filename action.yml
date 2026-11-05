@@ -1,0 +1,61 @@
+name: BuildFerry Upload
+description: Send an iOS build to testers' iPhones. New iPhones are registered with Apple and the build is re-signed for them.
+author: BuildFerry
+branding:
+  icon: send
+  color: blue
+inputs:
+  token:
+    description: BuildFerry API token, stored as a secret (create one at https://buildferry.app/ci)
+    required: true
+  ipa:
+    description: Path to the .ipa. Default, the newest .ipa in the workspace
+    required: false
+    default: ''
+  wait:
+    description: Wait for BuildFerry to check the build, so the step fails when it can't be shared
+    required: false
+    default: 'true'
+  timeout:
+    description: Seconds to wait for the check
+    required: false
+    default: '600'
+  url:
+    description: BuildFerry address
+    required: false
+    default: https://buildferry.app
+outputs:
+  status:
+    description: ok, duplicate, uploaded (still being checked), incompatible or failed
+    value: ${{ steps.upload.outputs.status }}
+  share-url:
+    description: The app's share link, when it's on
+    value: ${{ steps.upload.outputs.share-url }}
+  app-url:
+    description: The app's page in BuildFerry
+    value: ${{ steps.upload.outputs.app-url }}
+  version:
+    description: The build's version (CFBundleShortVersionString)
+    value: ${{ steps.upload.outputs.version }}
+  build:
+    description: The build number (CFBundleVersion)
+    value: ${{ steps.upload.outputs.build }}
+  testers:
+    description: How many approved testers get this build
+    value: ${{ steps.upload.outputs.testers }}
+runs:
+  using: composite
+  steps:
+    - id: upload
+      shell: bash
+      env:
+        BUILDFERRY_TOKEN: ${{ inputs.token }}
+        BUILDFERRY_URL: ${{ inputs.url }}
+        INPUT_IPA: ${{ inputs.ipa }}
+        INPUT_WAIT: ${{ inputs.wait }}
+        INPUT_TIMEOUT: ${{ inputs.timeout }}
+      run: |
+        args=(upload --timeout "$INPUT_TIMEOUT")
+        if [ -n "$INPUT_IPA" ]; then args+=("$INPUT_IPA"); fi
+        if [ "$INPUT_WAIT" = "false" ]; then args+=(--no-wait); fi
+        node "$GITHUB_ACTION_PATH/buildferry.mjs" "${args[@]}"
