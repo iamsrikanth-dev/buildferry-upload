@@ -1,0 +1,26 @@
+name: Test
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: A dummy build
+        run: mkdir -p build/export && head -c 1000 /dev/urandom > build/export/App.ipa
+      - name: Upload with a token that isn't valid
+        id: upload
+        uses: ./
+        continue-on-error: true
+        with:
+          token: bf_not-a-real-token
+      - name: The step found the build, reached BuildFerry and failed
+        run: test "${{ steps.upload.outcome }}" = failure
