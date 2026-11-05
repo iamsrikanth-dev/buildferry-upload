@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-const VERSION = '1.0.0';
+const VERSION = '1.0.1';
 const DEFAULT_URL = 'https://buildferry.app';
 const SKIP_DIRS = new Set(['node_modules', '.git', 'Pods', '.build', '.gradle', '.dart_tool', 'vendor']);
 const HELP = `Upload an iOS build to BuildFerry. Testers' iPhones get it automatically.
@@ -79,8 +79,10 @@ export function findIpa(dir, depth = 6) {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-function size(bytes) {
-  return bytes >= 1024 ** 3 ? `${(bytes / 1024 ** 3).toFixed(2)} GB` : `${(bytes / 1024 ** 2).toFixed(1)} MB`;
+export function size(bytes) {
+  if (bytes >= 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(2)} GB`;
+  if (bytes >= 1024 ** 2) return `${(bytes / 1024 ** 2).toFixed(1)} MB`;
+  return `${Math.max(1, Math.round(bytes / 1024))} KB`;
 }
 
 /** A request to the BuildFerry API, retried on network errors, 429 and 5xx. */
@@ -112,6 +114,7 @@ function progress(opts) {
   return {
     update(done, total) {
       const pct = Math.floor((done / total) * 100);
+      if (opts.json) return;
       if (tty) process.stderr.write(`\rUploading ${size(done)} of ${size(total)} (${pct}%)`);
       else if (pct >= shown + 25 || pct === 100) {
         shown = pct - (pct % 25);
