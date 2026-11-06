@@ -12,6 +12,14 @@ inputs:
     description: Path to the .ipa. Default, the newest .ipa in the workspace
     required: false
     default: ''
+  notes:
+    description: What's new / what to test, shown to testers on the install page
+    required: false
+    default: ''
+  notes-file:
+    description: Path to a file with the notes (a changelog, for example). Use this or notes
+    required: false
+    default: ''
   wait:
     description: Wait for BuildFerry to check the build, so the step fails when it can't be shared
     required: false
@@ -52,10 +60,14 @@ runs:
         BUILDFERRY_TOKEN: ${{ inputs.token }}
         BUILDFERRY_URL: ${{ inputs.url }}
         INPUT_IPA: ${{ inputs.ipa }}
+        INPUT_NOTES: ${{ inputs.notes }}
+        INPUT_NOTES_FILE: ${{ inputs.notes-file }}
         INPUT_WAIT: ${{ inputs.wait }}
         INPUT_TIMEOUT: ${{ inputs.timeout }}
       run: |
         args=(upload --timeout "$INPUT_TIMEOUT")
         if [ -n "$INPUT_IPA" ]; then args+=("$INPUT_IPA"); fi
+        if [ -n "$INPUT_NOTES" ]; then args+=(--notes "$INPUT_NOTES"); fi
+        if [ -n "$INPUT_NOTES_FILE" ]; then args+=(--notes-file "$INPUT_NOTES_FILE"); fi
         if [ "$INPUT_WAIT" = "false" ]; then args+=(--no-wait); fi
         node "$GITHUB_ACTION_PATH/buildferry.mjs" "${args[@]}"

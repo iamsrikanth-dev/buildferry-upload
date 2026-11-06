@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-const VERSION = '1.0.1';
+const VERSION = '1.1.0';
 const DEFAULT_URL = 'https://buildferry.app';
 const SKIP_DIRS = new Set(['node_modules', '.git', 'Pods', '.build', '.gradle', '.dart_tool', 'vendor']);
 const HELP = `Upload an iOS build to BuildFerry. Testers' iPhones get it automatically.
@@ -19,6 +19,8 @@ With no path, the newest .ipa under the current folder is used.
 
 Options
   --token <token>   API token (default: the BUILDFERRY_TOKEN environment variable)
+  --notes <text>    What's new / what to test, shown to testers on the install page
+  --notes-file <f>  Read the notes from a file (a changelog, for example)
   --no-wait         Don't wait for BuildFerry to check the build
   --timeout <sec>   How long to wait for the check (default 600)
   --json            Print the result as JSON
@@ -45,11 +47,14 @@ function parseArgs(argv) {
     else if (a === '--json') opts.json = true;
     else if (a === '--token' || a.startsWith('--token=')) opts.token = value();
     else if (a === '--url' || a.startsWith('--url=')) opts.url = value();
+    else if (a === '--notes' || a.startsWith('--notes=')) opts.notes = value();
+    else if (a === '--notes-file' || a.startsWith('--notes-file=')) opts.notesFile = value();
     else if (a === '--timeout' || a.startsWith('--timeout=')) opts.timeout = Number(value());
     else if (a.startsWith('-')) throw new Failure(`Unknown option ${a}. Run buildferry --help.`);
     else opts.files.push(a);
   }
   if (!Number.isFinite(opts.timeout) || opts.timeout < 0) throw new Failure('--timeout must be a number of seconds');
+  if (opts.notes !== undefined && opts.notesFile) throw new Failure('Use --notes or --notes-file, not both.');
   opts.url = opts.url.replace(/\/+$/, '');
   return opts;
 }
@@ -134,11 +139,14 @@ async function upload(opts) {
   if (!file) throw new Failure('No .ipa found under this folder. Pass its path: buildferry upload path/to/App.ipa');
   if (!fs.existsSync(file)) throw new Failure(`${file} does not exist.`);
   if (!file.toLowerCase().endsWith('.ipa')) throw new Failure(`${file} is not an .ipa file.`);
+  if (opts.notesFile && !fs.existsSync(opts.notesFile)) throw new Failure(`${opts.notesFile} does not exist.`);
+  const notes = (opts.notesFile ? fs.readFileSync(opts.notesFile, 'utf8') : opts.notes ?? '').trim();
+  if (notes.length > 2000) throw new Failure(`The notes are ${notes.length} characters; keep them under 2000.`);
   const bytes = fs.statSync(file).size;
   const log = (s) => opts.json || process.stderr.write(`${s}\n`);
   log(`Uploading ${path.relative(process.cwd(), file) || file} (${size(bytes)}) to ${opts.url}`);
 
-  const start = await call(opts, 'POST', '/api/uploads', { fileName: path.basename(file), size: bytes });
+  const start = await call(opts, 'POST', '/api/uploads', { fileName: path.basename(file), size: bytes, ...(notes ? { notes } : {}) });
   const fd = fs.openSync(file, 'r');
   const bar = progress(opts);
   const parts = [];

@@ -28,6 +28,8 @@ With no `ipa:` input, the newest `.ipa` in the workspace is uploaded.
 | `ipa` | newest `.ipa` | Path to the build |
 | `wait` | `true` | Wait for BuildFerry to check the build, so the step fails when it can't be shared |
 | `timeout` | `600` | Seconds to wait for the check |
+| `notes` | | What's new / what to test, shown to testers on the install page |
+| `notes-file` | | Path to a file with the notes, such as a changelog |
 | `url` | `https://buildferry.app` | BuildFerry address |
 
 ## Outputs
